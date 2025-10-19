@@ -14,10 +14,11 @@ RPi.GPIO>=0.7.0
 # QR Code generation for Matter commissioning
 qrcode[pil]>=7.0
 
-# Matter IoT support - REAL Matter protocol
-python-matter-server>=8.0.0
-zeroconf>=0.148.0
-aiohttp>=3.13.0
+# Matter IoT support - REAL Matter protocol (not simulation!)
+python-matter-server==8.1.1
+zeroconf==0.148.0
+aiohttp==3.13.1
+home-assistant-chip-clusters==2025.7.0
 
 # Development and testing (optional)
 # pytest>=7.0.0  # Uncomment for testing

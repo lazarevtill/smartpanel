@@ -343,24 +343,36 @@ class MatterDevicesScreen(BaseScreen):
         qr_img = generate_matter_qr_code(payload)
         
         if qr_img:
-            # Resize to fit display
-            qr_size = min(width - 8, height - start_y - 40)
+            # Calculate QR size to fit display (leave room for manual code at bottom)
+            # Reserve 30 pixels for manual code (2 lines of text + spacing)
+            available_height = height - start_y - 42  # 30 for code + 12 for help text
+            qr_size = min(width - 16, available_height)
             qr_resized = render_qr_to_display(qr_img, (qr_size, qr_size))
             
-            # Center QR code
+            # Center QR code horizontally
             qr_x = (width - qr_size) // 2
-            qr_y = start_y + 5
+            qr_y = start_y + 2
             
-            # Draw placeholder box for QR code
-            draw.rectangle([qr_x, qr_y, qr_x + qr_size, qr_y + qr_size], 
-                         outline=colors['fg'], fill=colors['bg'])
+            # Draw QR code pixel by pixel (inverted for better visibility on dark bg)
+            if qr_resized:
+                qr_resized = qr_resized.convert('1')  # Convert to 1-bit black/white
+                pixels = qr_resized.load()
+                for py in range(qr_resized.height):
+                    for px in range(qr_resized.width):
+                        if pixels[px, py] == 0:  # Black pixel in QR = white on screen
+                            draw.point((qr_x + px, qr_y + py), fill=(255, 255, 255))
+                        # White pixels stay as background color (no need to draw)
             
-            # Show manual pairing code
+            # Show manual pairing code below QR (ensure it doesn't overlap help text)
             manual_code = self.matter_server.get_manual_pairing_code()
-            draw.text((4, qr_y + qr_size + 8), "Manual Code:", 
-                     font=FONT_S, fill=colors['fg'])
-            draw.text((4, qr_y + qr_size + 20), manual_code, 
-                     font=FONT_S, fill=colors['accent'])
+            code_y = qr_y + qr_size + 6
+            
+            # Clear area for manual code to prevent overlap
+            draw.rectangle([0, code_y, width-1, code_y + 24], fill=colors['bg'])
+            
+            # Draw manual code
+            draw.text((4, code_y), "Manual Code:", font=FONT_S, fill=colors['fg'])
+            draw.text((4, code_y + 12), manual_code, font=FONT_S, fill=colors['accent'])
         else:
             draw.text((4, start_y), "QR generation", font=FONT_S, fill=colors['error'])
             draw.text((4, start_y+12), "failed", font=FONT_S, fill=colors['error'])
