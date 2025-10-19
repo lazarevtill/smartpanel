@@ -6,13 +6,17 @@ Your Smart Panel now has **FULL Matter certificate chain support** for proper co
 
 ## What Was Implemented
 
-### 1. AttestationRequest (Command 0x00)
+### 1. AttestationRequest (Command 0x00) ✨ **FULLY FIXED**
 - **Purpose**: Provides device attestation during commissioning
 - **Implementation**:
+  - Creates minimal TLV-encoded Certification Declaration (< 64 bytes)
+  - Uses `CertificationDeclaration` structure with development/test type
   - Generates proper attestation elements with TLV structure
   - Includes nonce for replay protection
-  - Returns 64-byte SHA-256 signature
+  - Signs attestation elements with DAC private key
+  - Returns 64-byte ECDSA SHA-256 signature
   - Returns `AttestationResponse` structure
+- **Fix Applied**: Changed from full CMS certification declaration to minimal TLV-encoded CD to stay under 64-byte limit
 
 ### 2. CertificateChainRequest (Command 0x02) ✨ **FULLY IMPLEMENTED**
 - **Purpose**: Provides device and intermediate certificates
