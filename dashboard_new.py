@@ -131,10 +131,30 @@ class SmartPanel:
         logger.debug("Initializing GPIO")
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
+        
+        # Force cleanup of lgpio pins
+        try:
+            import lgpio
+            # Try to open and close chip to reset state
+            try:
+                h = lgpio.gpiochip_open(0)
+                # Free all pins we might use
+                for pin in [5, 6, 11, 12, 16, 17, 21, 26, 27]:
+                    try:
+                        lgpio.gpio_free(h, pin)
+                    except:
+                        pass
+                lgpio.gpiochip_close(h)
+            except:
+                pass
+        except Exception as e:
+            logger.debug(f"lgpio cleanup: {e}")
+        
         try:
             GPIO.cleanup()
         except Exception as e:
             logger.debug(f"GPIO cleanup: {e}")
+        
         GPIO.setup(PIN_BL, GPIO.OUT, initial=GPIO.HIGH)
         
         # Load configuration

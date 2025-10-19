@@ -52,7 +52,9 @@ sudo apt install -y \
     libfreetype6-dev \
     liblcms2-dev \
     libwebp-dev \
-    libopenblas-dev
+    libopenblas-dev \
+    avahi-daemon \
+    avahi-utils
 
 echo ""
 echo "✓ System dependencies installed"

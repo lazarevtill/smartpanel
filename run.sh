@@ -65,6 +65,11 @@ LOG_FILE="$LOG_DIR/smartpanel_$TODAY.log"
 echo -e "${GREEN}✓${NC} Logs will be written to: $LOG_FILE"
 
 echo ""
+echo -e "${BLUE}Cleaning up any previous instances...${NC}"
+# Kill any existing dashboard processes
+pkill -9 -f dashboard_new 2>/dev/null
+sleep 1
+
 echo -e "${BLUE}Starting Smart Panel...${NC}"
 echo ""
 echo "Controls:"

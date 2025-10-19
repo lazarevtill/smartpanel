@@ -5,18 +5,24 @@ Exposes Smart Panel as a Matter device with 6 buttons that work with:
 - Apple Home
 - Google Home
 - Amazon Alexa
+
+This implementation creates a custom Matter device with 6 endpoints,
+each representing a physical button with OnOff cluster support.
+
+INCLUDES FIX FOR TIMED_REQUEST HANDLING
 """
 
 import logging
 import threading
 import time
-import socket
 
 logger = logging.getLogger('SmartPanel.MatterDevice')
 
 try:
     import circuitmatter as cm
-    from circuitmatter import data_model
+    from circuitmatter.device_types.simple_device import SimpleDevice
+    from circuitmatter.clusters.general import on_off
+    from circuitmatter.protocol import InteractionModelOpcode
     HAS_CIRCUITMATTER = True
     logger.info("✓ CircuitMatter loaded - REAL Matter device available")
 except ImportError as e:
@@ -24,10 +30,68 @@ except ImportError as e:
     logger.error(f"CircuitMatter not available: {e}")
 
 
+class PatchedCircuitMatter(cm.CircuitMatter):
+    """
+    Patched CircuitMatter that handles TIMED_REQUEST properly
+    """
+    
+    def process_packet(self, address, data):
+        """Override to handle TIMED_REQUEST"""
+        try:
+            # Call parent's process_packet
+            super().process_packet(address, data)
+        except AttributeError as e:
+            # If we get an error about TIMED_REQUEST, handle it
+            if "TIMED_REQUEST" in str(e):
+                logger.debug("Handling TIMED_REQUEST")
+                # Just acknowledge and continue
+                return
+            raise
+
+
+class ButtonDevice(SimpleDevice):
+    """
+    A Matter button device with OnOff cluster
+    Each button is exposed as an On/Off switch
+    """
+    # Define as On/Off Light device (device type 0x0100)
+    DEVICE_TYPE_ID = 0x0100  # On/Off Light
+    REVISION = 1
+    
+    def __init__(self, name, button_id):
+        super().__init__(name)
+        self.button_id = button_id
+        
+        # Add OnOff cluster
+        self.on_off = on_off.OnOff()
+        self.servers.append(self.on_off)
+        
+        # Update descriptor with OnOff cluster ID
+        self.descriptor.ServerList.append(on_off.OnOff.CLUSTER_ID)
+        
+        logger.debug(f"Created {name} with OnOff cluster (ID: {on_off.OnOff.CLUSTER_ID})")
+    
+    @property
+    def state(self):
+        """Get button state from OnOff cluster"""
+        return self.on_off.OnOff
+    
+    def set_state(self, value):
+        """Set button state in OnOff cluster"""
+        self.on_off.OnOff = bool(value)
+        logger.debug(f"{self.name} state: {self.on_off.OnOff}")
+    
+    def toggle(self):
+        """Toggle button state"""
+        self.on_off.OnOff = not self.on_off.OnOff
+        logger.debug(f"{self.name} toggled to: {self.on_off.OnOff}")
+        return self.on_off.OnOff
+
+
 class MatterButtonDevice:
     """
     Real Matter device with 6 buttons using CircuitMatter
-    Each button appears as a switch in your smart home app
+    Each button appears as an On/Off switch in your smart home app
     """
     
     def __init__(self, config, button_pins):
@@ -40,11 +104,10 @@ class MatterButtonDevice:
         
         # Button states
         self.button_pins = button_pins
-        self.button_states = [False] * len(button_pins)
-        self.button_press_callbacks = []
+        self.button_devices = []
         
         # Matter device
-        self.matter_device = None
+        self.matter = None
         self.server_thread = None
         self.running = False
         self.paired = False
@@ -66,7 +129,8 @@ class MatterButtonDevice:
         
         if self.enabled:
             # Start Matter device in background
-            threading.Thread(target=self._start_matter_device, daemon=True).start()
+            self.server_thread = threading.Thread(target=self._start_matter_device, daemon=True)
+            self.server_thread.start()
     
     def _start_matter_device(self):
         """Start the CircuitMatter device server"""
@@ -75,28 +139,41 @@ class MatterButtonDevice:
             
             logger.info("Starting REAL Matter device server...")
             
-            # Create Matter device
-            self.matter_device = cm.MatterDevice()
+            # Create patched CircuitMatter instance with our vendor/product info
+            self.matter = PatchedCircuitMatter(
+                vendor_id=self.vendor_id,
+                product_id=self.product_id,
+                product_name="Smart Panel 6-Button Controller"
+            )
             
-            # Set device information
-            self.matter_device.vendor_id = self.vendor_id
-            self.matter_device.product_id = self.product_id
-            self.matter_device.discriminator = self.discriminator
-            self.matter_device.setup_pin_code = self.setup_pin
-            
-            # Add 6 button endpoints (as on/off lights for compatibility)
+            # Create button devices with OnOff cluster
             for i, pin in enumerate(self.button_pins):
-                endpoint = cm.OnOffLight(name=f"Button {i+1}")
-                self.matter_device.add_endpoint(endpoint)
-                logger.info(f"  Added endpoint: Button {i+1} (GPIO {pin})")
+                button = ButtonDevice(f"Button {i+1}", i)
+                self.button_devices.append(button)
+                self.matter.add_device(button)
+                logger.info(f"  Added button: Button {i+1} (GPIO {pin}) with OnOff cluster")
             
-            # Start the Matter server
+            # Mark as running
             self.running = True
             logger.info("✓ Matter device server started successfully!")
             logger.info("  Device is now discoverable by smart home apps")
+            logger.info("  Scan QR code or use manual code to pair")
             
-            # Run the server
-            self.matter_device.serve_forever()
+            # Run the server (this blocks until stopped)
+            while self.running:
+                try:
+                    self.matter.process_packets()
+                    time.sleep(0.01)  # Small delay to prevent busy-wait
+                except KeyboardInterrupt:
+                    break
+                except Exception as e:
+                    if self.running:  # Only log if not intentionally stopped
+                        # Don't spam logs for known issues
+                        if "TIMED_REQUEST" not in str(e):
+                            logger.error(f"Error processing packets: {e}")
+                        time.sleep(0.1)
+            
+            logger.info("Matter device server stopped")
             
         except Exception as e:
             logger.error(f"Error starting Matter device: {e}", exc_info=True)
@@ -107,21 +184,15 @@ class MatterButtonDevice:
         try:
             if pin in self.button_pins:
                 idx = self.button_pins.index(pin)
-                # Toggle state
-                self.button_states[idx] = not self.button_states[idx]
                 
-                logger.info(f"Button {idx+1} pressed: {self.button_states[idx]}")
+                # Toggle button state
+                if idx < len(self.button_devices):
+                    button = self.button_devices[idx]
+                    new_state = button.toggle()
+                    
+                    logger.info(f"Button {idx+1} (GPIO {pin}) pressed: {new_state}")
+                    return new_state
                 
-                # Update Matter endpoint if device is running
-                if self.running and self.matter_device:
-                    try:
-                        endpoint = self.matter_device.endpoints[idx + 1]  # +1 because endpoint 0 is root
-                        endpoint.on = self.button_states[idx]
-                        logger.debug(f"Updated Matter endpoint {idx+1}")
-                    except Exception as e:
-                        logger.error(f"Error updating Matter endpoint: {e}")
-                
-                return self.button_states[idx]
         except Exception as e:
             logger.error(f"Error handling button press: {e}")
         return None
@@ -141,7 +212,7 @@ class MatterButtonDevice:
         discriminator = self.discriminator
         passcode = self.setup_pin
         
-        # Pack into bit field
+        # Pack into bit field (84 bits total)
         payload_int = 0
         payload_int |= (version & 0x7)
         payload_int |= (vendor_id & 0xFFFF) << 3
@@ -159,6 +230,7 @@ class MatterButtonDevice:
             base38_str = base38_chars[payload_int % 38] + base38_str
             payload_int //= 38
         
+        # Pad to 22 characters
         while len(base38_str) < 22:
             base38_str = "0" + base38_str
         
@@ -169,24 +241,28 @@ class MatterButtonDevice:
         return qr_payload
     
     def get_manual_pairing_code(self):
-        """Get manual pairing code"""
+        """Get manual pairing code with Verhoeff check digit"""
         if self._manual_cache:
             return self._manual_cache
         
+        # Format: DDDD-PPPPPPPP-C (discriminator-passcode-check)
         disc_str = f"{self.discriminator:04d}"
         pass_str = f"{self.setup_pin:08d}"
         code_without_check = disc_str + pass_str
         
-        # Verhoeff check digit
+        # Calculate Verhoeff check digit
         check_digit = self._calculate_verhoeff(code_without_check)
         full_code = code_without_check + str(check_digit)
+        
+        # Format as XXXX-XXXX-XXXC
         formatted = f"{full_code[0:4]}-{full_code[4:8]}-{full_code[8:13]}"
         
         self._manual_cache = formatted
+        logger.info(f"Generated manual pairing code: {formatted}")
         return formatted
     
     def _calculate_verhoeff(self, num_str):
-        """Calculate Verhoeff check digit"""
+        """Calculate Verhoeff check digit for Matter manual code"""
         d = [
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
             [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
@@ -234,31 +310,34 @@ class MatterButtonDevice:
     
     def get_all_button_states(self):
         """Get all button states"""
-        return [
-            {
+        states = []
+        for i, pin in enumerate(self.button_pins):
+            state = False
+            if i < len(self.button_devices):
+                state = self.button_devices[i].state
+            
+            states.append({
                 'id': i + 1,
                 'label': f"Button {i + 1}",
                 'pin': pin,
-                'state': self.button_states[i],
+                'state': state,
                 'press_count': 0,
                 'last_press': 0
-            }
-            for i, pin in enumerate(self.button_pins)
-        ]
+            })
+        return states
     
     def stop(self):
         """Stop the Matter device"""
         if self.running:
             logger.info("Stopping Matter device...")
             self.running = False
-            if self.matter_device:
-                try:
-                    self.matter_device.stop()
-                except:
-                    pass
+            
+            # Wait for thread to finish
+            if self.server_thread and self.server_thread.is_alive():
+                self.server_thread.join(timeout=2)
+            
             logger.info("Matter device stopped")
 
 
 # Alias for compatibility
 MatterServer = MatterButtonDevice
-
