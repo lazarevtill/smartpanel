@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=========================================="
 echo "Smart Panel v2.0"
-echo "Matter-Enabled Control Panel"
+echo "REAL Matter Device (CircuitMatter)"
 echo -e "==========================================${NC}"
 echo ""
 

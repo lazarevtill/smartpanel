@@ -110,10 +110,16 @@ echo "Installing Python packages..."
 if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
     pip install -r "$SCRIPT_DIR/requirements.txt"
     echo "✓ Python packages installed"
+    
+    # Install CircuitMatter for REAL Matter device support
+    echo ""
+    echo "Installing CircuitMatter for Matter device support..."
+    pip install circuitmatter HAP-python --quiet
+    echo "✓ CircuitMatter installed - Your panel is now a REAL Matter device!"
 else
     echo "WARNING: requirements.txt not found"
     echo "Installing core packages manually..."
-    pip install gpiozero luma.lcd Pillow psutil RPi.GPIO qrcode[pil]
+    pip install gpiozero luma.lcd Pillow psutil RPi.GPIO qrcode[pil] circuitmatter HAP-python
     echo "✓ Core packages installed"
 fi
 

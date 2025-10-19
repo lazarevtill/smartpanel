@@ -120,13 +120,33 @@ COLOR_SCHEMES = {
 
 # ---------- Configuration Management ----------
 
+# Cache colors to avoid loading config on every frame
+_colors_cache = None
+
 def get_colors(config=None):
-    """Get color scheme based on configuration"""
+    """Get color scheme based on configuration (cached)"""
+    global _colors_cache
+    
+    # Return cached colors if no config provided
+    if config is None and _colors_cache is not None:
+        return _colors_cache
+    
     if config is None:
         config = load_config()
     
     scheme_name = config.get('color_scheme', 'default')
-    return COLOR_SCHEMES.get(scheme_name, COLOR_SCHEMES['default'])
+    colors = COLOR_SCHEMES.get(scheme_name, COLOR_SCHEMES['default'])
+    
+    # Cache the result
+    if config is None:
+        _colors_cache = colors
+    
+    return colors
+
+def clear_colors_cache():
+    """Clear colors cache (call when config changes)"""
+    global _colors_cache
+    _colors_cache = None
 
 
 def load_config():
@@ -153,6 +173,8 @@ def save_config(config):
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_FILE.write_text(json.dumps(config, indent=2, sort_keys=True))
         logger.info(f"Configuration saved to {CONFIG_FILE}")
+        # Clear colors cache when config changes
+        clear_colors_cache()
     except Exception as e:
         logger.error(f"Error saving config: {e}", exc_info=True)
 

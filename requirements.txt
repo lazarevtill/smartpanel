@@ -14,7 +14,8 @@ RPi.GPIO>=0.7.0
 # QR Code generation for Matter commissioning
 qrcode[pil]>=7.0
 
-# Matter IoT support - REAL Matter protocol (not simulation!)
+# Matter IoT support - REAL Matter protocol using CircuitMatter!
+circuitmatter>=0.4.0
 python-matter-server==8.1.1
 zeroconf==0.148.0
 aiohttp==3.13.1

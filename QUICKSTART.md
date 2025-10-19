@@ -1,239 +1,174 @@
-# Smart Panel v2.0 - Quick Start Guide
+# 🚀 Smart Panel - Quick Start Guide
 
-## 🚀 Installation (5 minutes)
+Get your Smart Panel running as a Matter device in 5 minutes!
+
+## ⚡ Super Quick Start
 
 ```bash
-cd /home/lazarev/smartpanel
-chmod +x setup.sh run.sh
+# 1. Clone and setup
+git clone https://github.com/yourusername/smartpanel.git
+cd smartpanel
 ./setup.sh
-```
 
-The setup script will:
-- ✓ Install system dependencies
-- ✓ Enable SPI interface
-- ✓ Create Python virtual environment
-- ✓ Install all required packages
-- ✓ Verify installation
-
-## ▶️ Running
-
-```bash
+# 2. Run
 ./run.sh
+
+# 3. Add to SmartThings
+# - Navigate to "Matter Status" on screen
+# - Press encoder to show QR code
+# - Scan with SmartThings app
+# - Done!
 ```
+
+## 📱 Adding to Your Smart Home
+
+### Samsung SmartThings (Recommended)
+1. Open SmartThings app
+2. Tap **+** (Add Device)
+3. Select **Scan QR Code**
+4. On Smart Panel: Menu → Matter Status → Press Encoder
+5. Scan QR code from screen
+6. Follow prompts
+7. Your 6 buttons appear!
+
+### Apple Home
+1. Open Home app
+2. Tap **+** → **Add Accessory**
+3. Tap **More Options**
+4. Select "Smart Panel"
+5. Enter code: `3840-2020-20214`
+6. Complete setup
+
+### Google Home
+1. Open Google Home app
+2. Tap **+** → **Set up device**
+3. Select **Works with Google** → **Matter**
+4. Scan QR code
+5. Complete setup
 
 ## 🎮 Basic Controls
 
-### Encoder (Primary Control)
-- **Rotate**: Navigate menus, scroll lists, adjust values
-- **Short Press**: Select item, confirm action
-- **Long Press**: Go back to previous screen
+### Encoder
+- **Rotate**: Navigate
+- **Short Press**: Select
+- **Long Press**: Back
 
-### Physical Buttons (Default)
-- **Button 1-2, 4**: Matter-only (no system function)
-- **Button 3**: Back navigation
+### Buttons
+- **Button 1-6**: Matter switches (configurable)
+- **Button 3**: Quick back
 - **Button 5**: Cycle display offset
-- **Button 6**: Show Matter QR code
+- **Button 6**: Show/hide QR code
+- **Button 1+6 (hold 10s)**: Emergency reset
 
-### Emergency Reset
-- Hold **Button 1 + Button 6** for 10 seconds
-- Resets all configuration to defaults
-
-## 📱 Adding to Matter Smart Home
-
-### Apple Home (iPhone/iPad)
-
-1. On Smart Panel:
-   - Navigate to **Main Menu → Matter Status**
-   - Press encoder to show QR code
-
-2. On iPhone:
-   - Open **Home** app
-   - Tap **+** → **Add Accessory**
-   - Scan QR code on TFT screen
-   - Follow prompts to add "Smart Panel"
-
-3. Configure buttons:
-   - Each button appears as a switch
-   - Rename: "Living Room Light", "Coffee Maker", etc.
-   - Create automations based on button presses
-
-### Google Home (Android)
-
-1. On Smart Panel:
-   - Navigate to **Main Menu → Matter Status**
-   - Press encoder to show QR code
-
-2. On Android:
-   - Open **Google Home** app
-   - Tap **+** → **Set up device** → **New device**
-   - Scan QR code on TFT screen
-   - Follow prompts to add device
-
-3. Configure buttons:
-   - Assign to rooms
-   - Create routines triggered by buttons
-
-## 🎛️ Menu Navigation
+## 📋 Main Menu
 
 ```
-Main Menu
-├── System Info          # View CPU, RAM, temperature, etc.
-├── Matter Status        # View server status, show QR code
-├── Button Config        # Assign functions to buttons
-├── GPIO Control         # Toggle GPIO pins
-├── Settings             # Configure display, Matter, system
-├── About                # Version information
-└── Power                # Shutdown/Restart
+Smart Panel
+├── System Info      # CPU, memory, temperature
+├── Matter Status    # Device status, QR code
+├── Button Config    # Configure button functions
+├── GPIO Control     # Toggle GPIO pins
+├── Settings         # Brightness, refresh, Matter
+├── About           # Version info
+└── Power           # Shutdown, restart
 ```
 
-## ⚙️ Configuring Buttons
+## 🔧 Configuration
 
-1. Navigate to **Main Menu → Button Config**
-2. Rotate encoder to select button (1-6)
-3. Short press to edit
-4. Rotate to cycle through functions:
-   - `Matter Button Only`
-   - `Back + Matter`
-   - `Select + Matter`
-   - `Main Menu + Matter`
-   - `Show QR Code`
-   - `Cycle Display Offset`
-5. Short press to confirm
+All settings in: `~/.smartpanel_config.json`
 
-**Note**: All buttons are always exposed to Matter. The function just adds a local system action.
-
-## 🔧 Common Tasks
-
-### View System Status
-1. Main Menu → **System Info**
-2. See real-time CPU, RAM, disk, temperature, network, uptime
-
-### Adjust Display Alignment
-1. Press **Button 5** repeatedly to cycle through offsets
-2. Or: Main Menu → Settings → (configure offset in future update)
-
-### Pair with Smart Home
-1. Main Menu → **Matter Status**
-2. Short press encoder → QR code appears
-3. Scan with smart home app
-4. Long press encoder to exit QR view
-
-### Configure Settings
-1. Main Menu → **Settings**
+Quick settings via UI:
+1. Menu → Settings
 2. Rotate to select setting
-3. Rotate to adjust value
-4. Short press to move to next setting
+3. Rotate to change value
+4. Short press to next setting
 5. Long press to save and exit
 
-### Emergency Reset
-1. Hold **Button 1 + Button 6** simultaneously
-2. Progress bar appears
-3. Keep holding for 10 seconds
-4. Panel resets and restarts
+## 📊 Matter Device Info
 
-## 📊 Understanding Matter Status
+```
+QR Code:     MT:0000005WF77J6U32IR2QBU
+Manual Code: 3840-2020-20214
+Buttons:     6 (GPIO 5,6,16,26,12,21)
+```
 
-When you view **Matter Status**, you'll see:
+## 🐛 Quick Troubleshooting
 
-- **Status**: Running/Stopped
-- **Pairing**: Paired/Not Paired
-- **Mode**: SIMULATION (until python-matter-server installed)
-- **Buttons**: 6
-- **Button States**: Current on/off state of each button
-
-Press encoder to toggle QR code display.
-
-## 🔍 Troubleshooting
-
-### Display not working
+### Display not working?
 ```bash
-# Check SPI is enabled
-lsmod | grep spi
-
-# If not, enable it
+# Enable SPI
 sudo raspi-config nonint do_spi 0
 sudo reboot
 ```
 
-### Display misaligned
-- Press **Button 5** to cycle through offset presets
-- Try: (0,0), (2,1), (2,3), (0,25)
-
-### Buttons not responding
-- Check GPIO connections
-- View logs: `tail -f ~/.smartpanel_logs/smartpanel_$(date +%Y%m%d).log`
-- Test button config: Main Menu → Button Config
-
-### Matter pairing fails
-- Ensure Matter is enabled: Main Menu → Settings
-- Try manual pairing code (shown below QR)
-- Check smart home app compatibility
-- Note: Real Matter requires `python-matter-server` package
-
-### Can't navigate menus
-- Use **encoder rotation** to navigate
-- Use **short press** to select
-- Use **long press** to go back
-- Physical buttons have specific functions only
-
-## 📁 File Locations
-
-- **Configuration**: `~/.smartpanel_config.json`
-- **Logs**: `~/.smartpanel_logs/`
-- **Code**: `/home/lazarev/smartpanel/`
-
-## 🔄 Updating
-
+### Matter not working?
 ```bash
-cd /home/lazarev/smartpanel
-git pull  # If using git
-./setup.sh  # Rebuild environment
-./run.sh   # Start panel
+# Check CircuitMatter
+python3 -c "import circuitmatter; print('OK')"
+
+# Reinstall if needed
+pip install circuitmatter HAP-python
 ```
 
-## 📖 More Information
+### Buttons not responding?
+- Check wiring
+- View logs: `tail -f ~/.smartpanel_logs/*.log`
+- Check GPIO permissions: `groups | grep gpio`
 
-- Full documentation: `README.md`
-- Hardware wiring: `README.md` → Wiring section
-- Configuration options: `README.md` → Configuration section
+### Can't add to SmartThings?
+- Use manual code: `3840-2020-20214`
+- Ensure same WiFi network
+- Restart avahi: `sudo systemctl restart avahi-daemon`
 
-## 💡 Example Use Cases
+## 📝 Logs
 
-### Home Automation
-- Button 1: "Good Morning" scene (lights, coffee, news)
-- Button 2: "Leaving Home" (lock doors, arm security, turn off lights)
-- Button 3: Back navigation (system function)
-- Button 4: "Movie Time" (dim lights, close blinds, turn on TV)
-- Button 5: Cycle display offset (system function)
-- Button 6: Show Matter QR (system function)
+```bash
+# View current log
+tail -f ~/.smartpanel_logs/smartpanel_$(date +%Y%m%d).log
 
-### Smart Office
-- Button 1: Start work session (lights on, focus mode)
-- Button 2: Break time (ambient lighting, music)
-- Button 3: Navigation
-- Button 4: End work (save, backup, turn off equipment)
-- Button 5: Display adjustment
-- Button 6: QR code access
+# View Matter logs only
+tail -f ~/.smartpanel_logs/*.log | grep Matter
 
-### Workshop/Garage
-- Button 1: Main lights
-- Button 2: Workbench lights
-- Button 3: Navigation
-- Button 4: Ventilation fan
-- Button 5: Display adjustment
-- Button 6: QR code access
+# Clear logs
+rm ~/.smartpanel_logs/*.log
+```
 
-## 🎯 Next Steps
+## 🔄 Update
 
-1. ✓ Install and run Smart Panel
-2. ✓ Navigate menus with encoder
-3. ✓ View system information
-4. ✓ Configure button functions
-5. ✓ Pair with Matter smart home
-6. ✓ Create automations in smart home app
-7. ✓ Enjoy your smart control panel!
+```bash
+cd ~/smartpanel
+git pull
+./setup.sh
+./run.sh
+```
+
+## 📞 Need Help?
+
+- **Full Docs**: See README.md
+- **Issues**: GitHub Issues
+- **Logs**: `~/.smartpanel_logs/`
+- **Config**: `~/.smartpanel_config.json`
+
+## ✅ Checklist
+
+- [ ] Hardware connected correctly
+- [ ] SPI enabled (`lsmod | grep spi`)
+- [ ] Setup script run (`./setup.sh`)
+- [ ] Display shows menu
+- [ ] Encoder navigates menus
+- [ ] Matter Status shows "Running"
+- [ ] QR code displays
+- [ ] Device added to smart home app
+- [ ] Buttons appear as switches
+- [ ] Physical buttons work
+- [ ] App control works
+
+## 🎉 Success!
+
+If all checkboxes are checked, you're done! Your Smart Panel is now a fully functional Matter device.
+
+**Enjoy your smart home control panel!** 🏠✨
 
 ---
 
-**Need help?** Check `README.md` for detailed documentation or review logs in `~/.smartpanel_logs/`
-
+**Need more details?** See [README.md](README.md) for complete documentation.

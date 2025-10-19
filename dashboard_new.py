@@ -54,7 +54,13 @@ from smartpanel_modules.screens import (
     MatterDevicesScreen, SettingsScreen, AboutScreen, ButtonConfigScreen
 )
 from smartpanel_modules.button_manager import ButtonManager
-from smartpanel_modules.matter_server import MatterServer
+# Use REAL Matter device implementation with CircuitMatter
+try:
+    from smartpanel_modules.matter_device_real import MatterServer
+    logger.info("Using REAL CircuitMatter implementation")
+except ImportError:
+    from smartpanel_modules.matter_server import MatterServer
+    logger.warning("CircuitMatter not available, using fallback")
 from smartpanel_modules.gpio_control import init_gpio_control
 from smartpanel_modules.config import ENC_A, ENC_B, ENC_PUSH, BUTTON_PINS
 
