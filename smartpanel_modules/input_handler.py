@@ -6,9 +6,13 @@ Enhanced input handling with long press, short press, emergency reset, and debou
 import time
 import logging
 from gpiozero import RotaryEncoder, Button as GPIOButton
+from gpiozero.pins.lgpio import LGPIOFactory
 from .config import EMERGENCY_RESET_BUTTONS, EMERGENCY_RESET_DURATION
 
 logger = logging.getLogger('SmartPanel.Input')
+
+# Use lgpio factory with pull-up resistors
+factory = LGPIOFactory()
 
 
 class InputHandler:
@@ -18,11 +22,17 @@ class InputHandler:
         logger.info("Initializing input handler")
         
         # Initialize encoder
-        self.encoder = RotaryEncoder(enc_a, enc_b, max_steps=0, wrap=False, bounce_time=0.002)
-        self.enc_button = GPIOButton(enc_push)
+        self.encoder = RotaryEncoder(enc_a, enc_b, max_steps=0, wrap=False, bounce_time=0.002, pin_factory=factory)
         
-        # Initialize buttons
-        self.buttons = [GPIOButton(p) for p in button_pins]
+        # Encoder button with pull-up (active low - pressed = GND)
+        # KY-040 rotary encoder SW pin connects to GND when pressed
+        # pull_up=True means internal pull-up resistor, button connects to GND when pressed
+        self.enc_button = GPIOButton(enc_push, pull_up=True, bounce_time=0.05, pin_factory=factory)
+        
+        # Initialize buttons with pull-down resistors (active high - pressed = HIGH/3.3V)
+        # pull_up=False: button.is_pressed = True when button pressed (connected to 3.3V)
+        # This is the correct configuration for buttons wired to 3.3V
+        self.buttons = [GPIOButton(p, pull_up=False, bounce_time=0.05, pin_factory=factory) for p in button_pins]
         self.button_pins = button_pins
         self.button_states = {p: False for p in button_pins}
         
@@ -48,6 +58,12 @@ class InputHandler:
         
         logger.info(f"Input handler initialized with {len(button_pins)} buttons")
         logger.info(f"Emergency reset: Hold B1+B6 for {EMERGENCY_RESET_DURATION}s")
+        
+        # Debug: Check initial button states
+        time.sleep(0.1)  # Small delay for buttons to stabilize
+        logger.debug(f"Encoder button GPIO{self.enc_button.pin.number}: is_pressed={self.enc_button.is_pressed}")
+        for b in self.buttons:
+            logger.debug(f"Button GPIO{b.pin.number}: is_pressed={b.is_pressed}")
     
     def _button_pressed(self, pin):
         """Handle button press event"""

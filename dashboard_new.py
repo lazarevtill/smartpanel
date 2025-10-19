@@ -328,17 +328,23 @@ class SmartPanel:
     def _show_emergency_reset_progress(self, progress):
         """Show emergency reset progress on display"""
         def render_reset(draw, w, h):
-            from .ui_components import FONT_M, FONT_S
+            from smartpanel_modules.ui_components import FONT_M, FONT_S
             colors = get_colors(self.config)
             
-            # Title
-            draw.text((w//2 - 60, 20), "EMERGENCY RESET", font=FONT_M, fill=colors['error'])
+            # Title - centered and shortened to fit
+            title = "EMERGENCY"
+            title_width = draw.textlength(title, font=FONT_M)
+            draw.text(((w - title_width) // 2, 15), title, font=FONT_M, fill=colors['error'])
+            
+            subtitle = "RESET"
+            subtitle_width = draw.textlength(subtitle, font=FONT_M)
+            draw.text(((w - subtitle_width) // 2, 30), subtitle, font=FONT_M, fill=colors['error'])
             
             # Progress bar
-            bar_width = w - 20
-            bar_height = 30
-            bar_x = 10
-            bar_y = h//2 - 15
+            bar_width = w - 16
+            bar_height = 28
+            bar_x = 8
+            bar_y = h//2 - 10
             
             # Background
             draw.rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], 
@@ -346,23 +352,26 @@ class SmartPanel:
             
             # Progress fill
             fill_width = int(bar_width * progress / 100)
-            if fill_width > 0:
+            if fill_width > 4:  # Only draw if wide enough
                 draw.rectangle([bar_x + 2, bar_y + 2, 
                               bar_x + fill_width - 2, bar_y + bar_height - 2], 
                              fill=colors['error'])
             
-            # Percentage text
+            # Percentage text - centered
             text = f"{progress}%"
-            draw.text((w//2 - 20, bar_y + 8), text, font=FONT_M, fill=colors['fg'])
+            text_width = draw.textlength(text, font=FONT_M)
+            draw.text(((w - text_width) // 2, bar_y + 8), text, font=FONT_M, fill=colors['fg'])
             
-            # Instructions
-            draw.text((10, h - 30), "Release to cancel", font=FONT_S, fill=colors['warning'])
+            # Instructions - centered and shortened
+            instruction = "Release=Cancel"
+            inst_width = draw.textlength(instruction, font=FONT_S)
+            draw.text(((w - inst_width) // 2, h - 25), instruction, font=FONT_S, fill=colors['warning'])
         
         self.display.render(render_reset)
     
     def _emergency_reset(self):
         """Perform emergency reset"""
-        from .config import reset_config
+        from smartpanel_modules.config import reset_config
         
         logger.warning("Performing emergency reset")
         
@@ -372,12 +381,21 @@ class SmartPanel:
         
         # Show confirmation
         def render_confirm(draw, w, h):
-            from .ui_components import FONT_M
+            from smartpanel_modules.ui_components import FONT_M, FONT_S
             colors = get_colors(self.config)
-            draw.text((w//2 - 50, h//2 - 10), "RESET COMPLETE", 
-                     font=FONT_M, fill=colors['accent'])
-            draw.text((w//2 - 40, h//2 + 10), "Restarting...", 
-                     font=FONT_M, fill=colors['fg'])
+            
+            # Center text properly
+            text1 = "RESET"
+            text1_width = draw.textlength(text1, font=FONT_M)
+            draw.text(((w - text1_width) // 2, h//2 - 20), text1, font=FONT_M, fill=colors['accent'])
+            
+            text2 = "COMPLETE"
+            text2_width = draw.textlength(text2, font=FONT_M)
+            draw.text(((w - text2_width) // 2, h//2 - 5), text2, font=FONT_M, fill=colors['accent'])
+            
+            text3 = "Restarting..."
+            text3_width = draw.textlength(text3, font=FONT_S)
+            draw.text(((w - text3_width) // 2, h//2 + 15), text3, font=FONT_S, fill=colors['fg'])
         
         self.display.render(render_confirm)
         time.sleep(2)
