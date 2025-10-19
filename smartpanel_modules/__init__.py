@@ -1,6 +1,6 @@
 """
 Smart Panel Modules
-Modular architecture for Raspberry Pi control panel
+Modular architecture for Raspberry Pi control panel with Matter support
 """
 
 __version__ = "2.0.0"
@@ -11,6 +11,10 @@ __all__ = [
     'system_monitor',
     'gpio_control',
     'matter_integration',
+    'matter_server',
+    'matter_qr',
+    'button_manager',
+    'input_handler',
     'screens',
     'display'
 ]

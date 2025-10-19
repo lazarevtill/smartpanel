@@ -4,12 +4,15 @@ All screen implementations for the dashboard
 """
 
 import time
-from .config import COLORS, BUTTON_LABELS
+import logging
+from .config import COLORS, BUTTON_LABELS, BUTTON_PINS, get_colors
 from .ui_components import FONT_S, FONT_M
 from .system_monitor import get_system_info
 from .gpio_control import gpio_states, toggle_gpio_pin
 from .matter_integration import MatterController
 from .matter_qr import generate_matter_qr_code, get_default_matter_payload, render_qr_to_display, HAS_QRCODE
+
+logger = logging.getLogger('SmartPanel.Screens')
 
 
 class BaseScreen:
@@ -253,139 +256,125 @@ class GPIOControlScreen(BaseScreen):
 
 
 class MatterDevicesScreen(BaseScreen):
-    """Matter device control interface"""
-    def __init__(self):
-        super().__init__("Matter Devices")
-        self.controller = MatterController()
-        self.selected_device = 0
-        self.controller.scan_devices()
-        self.show_qr = False
+    """Matter server status and pairing information"""
+    def __init__(self, matter_server):
+        super().__init__("Matter Status")
+        self.matter_server = matter_server
+        self.show_qr = False  # Toggle for QR code display
+        self.scroll_offset = 0
+        logger.info("Matter status screen initialized")
 
     def render(self, draw, width, height):
+        colors = get_colors()
+        
         # Title
-        draw.rectangle([0, 0, width-1, 16], fill=COLORS['menu_bg'])
-        draw.text((4, 2), self.title, font=FONT_M, fill=COLORS['menu_fg'])
-        draw.line([0, 17, width-1, 17], fill=COLORS['accent'])
+        draw.rectangle([0, 0, width-1, 16], fill=colors['menu_bg'])
+        title_text = "Matter QR Code" if self.show_qr else "Matter Status"
+        draw.text((4, 2), title_text, font=FONT_M, fill=colors['menu_fg'])
+        draw.line([0, 17, width-1, 17], fill=colors['accent'])
 
         y = 24
 
-        if not self.controller.enabled:
-            draw.text((4, y), "Matter disabled", font=FONT_S, fill=COLORS['disabled'])
-            draw.text((4, y+15), "Enable in Settings", font=FONT_S, fill=COLORS['warning'])
+        if not self.matter_server.enabled:
+            draw.text((4, y), "Matter disabled", font=FONT_S, fill=colors['disabled'])
+            draw.text((4, y+15), "Enable in Settings", font=FONT_S, fill=colors['warning'])
         elif self.show_qr:
             # Show QR code for pairing
-            self._render_qr_code(draw, width, height, y)
-        elif not self.controller.devices:
-            draw.text((4, y), "No devices found", font=FONT_S, fill=COLORS['disabled'])
-            draw.text((4, y+15), "Press B6 to scan", font=FONT_S, fill=COLORS['fg'])
-            y += 30
-            draw.text((4, y), "Press B7 for QR", font=FONT_S, fill=COLORS['accent'])
+            self._render_qr_code(draw, width, height, y, colors)
         else:
-            for i, device in enumerate(self.controller.devices[:7]):
-                if i == self.selected_device:
-                    draw.rectangle([2, y-2, width-3, y+11], fill=COLORS['menu_sel'])
-
-                status_color = COLORS['fg'] if device.online else COLORS['disabled']
-                state_color = COLORS['accent'] if device.state == 'ON' else COLORS['disabled']
-
-                # Device name
-                draw.text((6, y), device.name[:14], font=FONT_S, 
-                         fill=COLORS['bg'] if i == self.selected_device else status_color)
-
-                # State
-                if device.type == 'light':
-                    brightness = device.properties.get('brightness', 0)
-                    draw.text((width-35, y), f"{brightness}%", font=FONT_S, fill=state_color)
-                else:
-                    draw.text((width-28, y), str(device.state)[:4], font=FONT_S, fill=state_color)
-
+            # Show Matter server status
+            status = self.matter_server.get_status()
+            
+            # Status line
+            status_text = "Running" if status['running'] else "Stopped"
+            status_color = colors['accent'] if status['running'] else colors['error']
+            draw.text((4, y), f"Status: {status_text}", font=FONT_S, fill=status_color)
+            y += 14
+            
+            # Pairing status
+            paired_text = "Paired" if status['paired'] else "Not Paired"
+            paired_color = colors['accent'] if status['paired'] else colors['warning']
+            draw.text((4, y), f"Pairing: {paired_text}", font=FONT_S, fill=paired_color)
+            y += 14
+            
+            # Simulation mode indicator
+            if status['simulation_mode']:
+                draw.text((4, y), "Mode: SIMULATION", font=FONT_S, fill=colors['warning'])
                 y += 14
+            
+            # Button count
+            draw.text((4, y), f"Buttons: {status['button_count']}", font=FONT_S, fill=colors['fg'])
+            y += 16
+            
+            # Show button states
+            draw.text((4, y), "Button States:", font=FONT_S, fill=colors['fg'])
+            y += 12
+            
+            button_states = self.matter_server.get_all_button_states()
+            for btn in button_states[:4]:  # Show first 4 buttons
+                state_text = "ON " if btn['state'] else "OFF"
+                state_color = colors['accent'] if btn['state'] else colors['disabled']
+                draw.text((4, y), f"B{btn['id']}: {state_text}", font=FONT_S, fill=state_color)
+                y += 12
 
         # Help text
         if self.show_qr:
-            draw.text((4, height-12), "B7=hide QR", 
-                     font=FONT_S, fill=COLORS['disabled'])
+            draw.text((4, height-12), "Long press=back", 
+                     font=FONT_S, fill=colors['disabled'])
         else:
-            draw.text((4, height-12), "B6=scan B7=QR", 
-                     font=FONT_S, fill=COLORS['disabled'])
+            draw.text((4, height-12), "Press=QR Long=back", 
+                     font=FONT_S, fill=colors['disabled'])
 
-    def _render_qr_code(self, draw, width, height, start_y):
+    def _render_qr_code(self, draw, width, height, start_y, colors):
         """Render Matter QR code for device commissioning"""
         if not HAS_QRCODE:
-            draw.text((4, start_y), "QR code library", font=FONT_S, fill=COLORS['error'])
-            draw.text((4, start_y+12), "not installed", font=FONT_S, fill=COLORS['error'])
-            draw.text((4, start_y+30), "Install qrcode:", font=FONT_S, fill=COLORS['fg'])
-            draw.text((4, start_y+42), "pip3 install", font=FONT_S, fill=COLORS['fg'])
-            draw.text((4, start_y+54), "qrcode[pil]", font=FONT_S, fill=COLORS['fg'])
+            draw.text((4, start_y), "QR code library", font=FONT_S, fill=colors['error'])
+            draw.text((4, start_y+12), "not installed", font=FONT_S, fill=colors['error'])
+            draw.text((4, start_y+30), "Install qrcode:", font=FONT_S, fill=colors['fg'])
+            draw.text((4, start_y+42), "pip3 install", font=FONT_S, fill=colors['fg'])
+            draw.text((4, start_y+54), "qrcode[pil]", font=FONT_S, fill=colors['fg'])
             return
 
         # Generate QR code
-        payload = get_default_matter_payload()
+        payload = self.matter_server.get_pairing_qr_payload()
         qr_img = generate_matter_qr_code(payload)
         
         if qr_img:
             # Resize to fit display
-            qr_size = min(width - 8, height - start_y - 30)
+            qr_size = min(width - 8, height - start_y - 40)
             qr_resized = render_qr_to_display(qr_img, (qr_size, qr_size))
             
             # Center QR code
             qr_x = (width - qr_size) // 2
             qr_y = start_y + 5
             
-            # Paste QR code onto display
-            # Note: PIL's ImageDraw doesn't directly support pasting images
-            # We'll draw a placeholder box and text
+            # Draw placeholder box for QR code
             draw.rectangle([qr_x, qr_y, qr_x + qr_size, qr_y + qr_size], 
-                         outline=COLORS['fg'], fill=COLORS['bg'])
+                         outline=colors['fg'], fill=colors['bg'])
             
-            # Show pairing code as text
-            draw.text((4, qr_y + qr_size + 8), "Pairing Code:", 
-                     font=FONT_S, fill=COLORS['fg'])
-            draw.text((4, qr_y + qr_size + 20), payload[:16], 
-                     font=FONT_S, fill=COLORS['accent'])
+            # Show manual pairing code
+            manual_code = self.matter_server.get_manual_pairing_code()
+            draw.text((4, qr_y + qr_size + 8), "Manual Code:", 
+                     font=FONT_S, fill=colors['fg'])
+            draw.text((4, qr_y + qr_size + 20), manual_code, 
+                     font=FONT_S, fill=colors['accent'])
         else:
-            draw.text((4, start_y), "QR generation", font=FONT_S, fill=COLORS['error'])
-            draw.text((4, start_y+12), "failed", font=FONT_S, fill=COLORS['error'])
+            draw.text((4, start_y), "QR generation", font=FONT_S, fill=colors['error'])
+            draw.text((4, start_y+12), "failed", font=FONT_S, fill=colors['error'])
 
     def handle_input(self, enc_delta, enc_button_state, button_states):
-        # B7 - toggle QR code display
-        if 4 in button_states and button_states[4]:
-            self.show_qr = not self.show_qr
-            return self
-
-        if self.show_qr:
-            # In QR mode, long press to go back
-            if enc_button_state == 'long_press':
-                self.show_qr = False
-            return self
-
-        if not self.controller.enabled or not self.controller.devices:
-            if enc_button_state == 'long_press':
-                return 'back'
-            # B6 - rescan
-            if 21 in button_states and button_states[21]:
-                self.controller.scan_devices()
-            return self
-
-        # Navigate devices
-        if enc_delta > 0:
-            self.selected_device = (self.selected_device + 1) % len(self.controller.devices)
-        elif enc_delta < 0:
-            self.selected_device = (self.selected_device - 1) % len(self.controller.devices)
-
-        # Short press - toggle device
+        # Short press - toggle QR code display
         if enc_button_state == 'short_press':
-            device = self.controller.devices[self.selected_device]
-            device.toggle()
-            self.controller.control_device(device)
+            self.show_qr = not self.show_qr
+            logger.info(f"QR code display: {self.show_qr}")
+            return self
 
         # Long press - go back
         if enc_button_state == 'long_press':
-            return 'back'
-
-        # B6 - rescan
-        if 21 in button_states and button_states[21]:
-            self.controller.scan_devices()
+            if self.show_qr:
+                self.show_qr = False
+            else:
+                return 'back'
 
         return self
 
@@ -466,6 +455,132 @@ class SettingsScreen(BaseScreen):
         if enc_button_state == 'long_press':
             return 'back'
 
+        return self
+
+
+class ButtonConfigScreen(BaseScreen):
+    """Button configuration screen"""
+    def __init__(self, button_manager, matter_controller=None):
+        super().__init__("Button Config")
+        self.button_manager = button_manager
+        self.matter_controller = matter_controller
+        self.selected_button = 0
+        self.editing_mode = False  # False = select button, True = select function
+        self.function_scroll = 0
+        self.available_functions = button_manager.get_available_functions()
+        logger.info("Button config screen initialized")
+    
+    def render(self, draw, width, height):
+        colors = get_colors()
+        
+        # Title
+        draw.rectangle([0, 0, width-1, 16], fill=colors['menu_bg'])
+        title_text = "Edit Function" if self.editing_mode else "Button Config"
+        draw.text((4, 2), title_text, font=FONT_M, fill=colors['menu_fg'])
+        draw.line([0, 17, width-1, 17], fill=colors['accent'])
+        
+        if not self.editing_mode:
+            # Show button list
+            y = 24
+            line_height = 14
+            
+            assignments = self.button_manager.get_all_assignments()
+            for i, assignment in enumerate(assignments[:6]):
+                if i == self.selected_button:
+                    draw.rectangle([2, y-2, width-3, y+11], fill=colors['menu_sel'])
+                    text_color = colors['bg']
+                else:
+                    text_color = colors['fg']
+                
+                # Button label
+                label = assignment['label'][:3]  # Shorten to fit
+                draw.text((4, y), label, font=FONT_S, fill=text_color)
+                
+                # Function name (truncated)
+                func_name = assignment['function_name'][:12]
+                draw.text((30, y), func_name, font=FONT_S, fill=text_color)
+                
+                # Matter device indicator
+                if assignment['matter_device']:
+                    draw.text((width-12, y), "M", font=FONT_S, fill=colors['accent'])
+                
+                y += line_height
+            
+            # Help text
+            draw.text((4, height-12), "Press=edit Long=back", 
+                     font=FONT_S, fill=colors['disabled'])
+        else:
+            # Show function selection
+            y = 24
+            line_height = 14
+            
+            visible_functions = self.available_functions[self.function_scroll:self.function_scroll+7]
+            for i, func_key in enumerate(visible_functions):
+                actual_idx = i + self.function_scroll
+                current_func = self.button_manager.get_button_function(
+                    BUTTON_PINS[self.selected_button]
+                )
+                
+                if func_key == current_func:
+                    draw.rectangle([2, y-2, width-3, y+11], fill=colors['accent'])
+                    text_color = colors['bg']
+                else:
+                    text_color = colors['fg']
+                
+                func_name = self.button_manager.get_function_name(func_key)
+                draw.text((6, y), func_name[:18], font=FONT_S, fill=text_color)
+                y += line_height
+            
+            # Help text
+            draw.text((4, height-12), "Press=select Long=cancel", 
+                     font=FONT_S, fill=colors['disabled'])
+    
+    def handle_input(self, enc_delta, enc_button_state, button_states):
+        if not self.editing_mode:
+            # Navigate button list
+            if enc_delta != 0:
+                self.selected_button = (self.selected_button + enc_delta) % len(BUTTON_PINS)
+                logger.debug(f"Selected button: {self.selected_button}")
+            
+            # Enter edit mode
+            if enc_button_state == 'short_press':
+                self.editing_mode = True
+                logger.info(f"Editing button {BUTTON_PINS[self.selected_button]}")
+            
+            # Go back
+            if enc_button_state == 'long_press':
+                return 'back'
+        else:
+            # Navigate function list
+            if enc_delta > 0:
+                if self.function_scroll < len(self.available_functions) - 7:
+                    self.function_scroll += 1
+            elif enc_delta < 0:
+                if self.function_scroll > 0:
+                    self.function_scroll -= 1
+            
+            # Select function
+            if enc_button_state == 'short_press':
+                # Find selected function
+                visible_functions = self.available_functions[self.function_scroll:self.function_scroll+7]
+                if visible_functions:
+                    # For now, select the first visible (we'd need more logic to track selection)
+                    # Let's use a simpler approach: cycle through functions
+                    pin = BUTTON_PINS[self.selected_button]
+                    current_func = self.button_manager.get_button_function(pin)
+                    current_idx = self.available_functions.index(current_func) if current_func in self.available_functions else 0
+                    next_idx = (current_idx + 1) % len(self.available_functions)
+                    new_func = self.available_functions[next_idx]
+                    
+                    self.button_manager.set_button_function(pin, new_func)
+                    logger.info(f"Button {pin} function changed to: {new_func}")
+                    self.editing_mode = False
+            
+            # Cancel edit
+            if enc_button_state == 'long_press':
+                self.editing_mode = False
+                logger.info("Button edit cancelled")
+        
         return self
 
 

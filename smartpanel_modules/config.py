@@ -24,11 +24,31 @@ TRIM_BOTTOM = 1
 
 # Input pins
 ENC_A, ENC_B, ENC_PUSH = 17, 27, 22
-BUTTON_PINS = [5, 6, 16, 26, 12, 21, 4]
-BUTTON_LABELS = {5:"B1", 6:"B2", 16:"B3", 26:"B4", 12:"B5", 21:"B6", 4:"B7"}
 
-# Emergency reset combination (B1 + B6 for 10 seconds)
-EMERGENCY_RESET_BUTTONS = [5, 21]  # B1 and B6
+# 6 Configurable buttons (GPIO pins)
+BUTTON_PINS = [5, 6, 16, 26, 12, 21]
+BUTTON_LABELS = {
+    5: "Button 1",
+    6: "Button 2", 
+    16: "Button 3",
+    26: "Button 4",
+    12: "Button 5",
+    21: "Button 6"
+}
+
+# Button functions (configurable via settings)
+# Each button is exposed to Matter and can also trigger system functions
+BUTTON_FUNCTIONS = {
+    'none': 'Matter Button Only',  # Button press only updates Matter state
+    'back': 'Back + Matter',
+    'select': 'Select + Matter',
+    'menu': 'Main Menu + Matter',
+    'matter_qr': 'Show QR Code',
+    'offset_cycle': 'Cycle Display Offset'
+}
+
+# Emergency reset combination (Button 1 + Button 6 for 10 seconds)
+EMERGENCY_RESET_BUTTONS = [5, 21]  # First and last button
 EMERGENCY_RESET_DURATION = 10.0  # seconds
 
 # UI timing
@@ -57,7 +77,17 @@ DEFAULT_CONFIG = {
     'font_size_small': 11,  # Increased for better readability
     'font_size_medium': 14,  # Increased for better readability
     'qr_size': 90,  # QR code size for optimal scanning
-    'color_scheme': 'default'
+    'color_scheme': 'default',
+    # Button assignments (GPIO pin -> function)
+    # All buttons are exposed to Matter, these are additional system functions
+    'button_assignments': {
+        5: 'none',  # Button 1 - Matter only
+        6: 'none',  # Button 2 - Matter only
+        16: 'back',  # Button 3 - Back + Matter
+        26: 'none',  # Button 4 - Matter only
+        12: 'offset_cycle',  # Button 5 - Cycle offset + Matter
+        21: 'matter_qr'  # Button 6 - Show QR + Matter
+    }
 }
 
 # Color schemes for better TFT readability

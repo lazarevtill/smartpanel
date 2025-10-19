@@ -44,15 +44,17 @@ logger = logging.getLogger('SmartPanel')
 # Import Smart Panel modules
 from smartpanel_modules.config import (
     PIN_BL, DT, OFFSET_PRESETS, BUTTON_LABELS,
-    load_config, save_config, load_offset_idx, save_offset_idx
+    load_config, save_config, load_offset_idx, save_offset_idx, get_colors
 )
 from smartpanel_modules.display import Display
 from smartpanel_modules.input_handler import InputHandler
 from smartpanel_modules.menu_system import Menu, MenuItem
 from smartpanel_modules.screens import (
     MenuScreen, SystemInfoScreen, GPIOControlScreen,
-    MatterDevicesScreen, SettingsScreen, AboutScreen
+    MatterDevicesScreen, SettingsScreen, AboutScreen, ButtonConfigScreen
 )
+from smartpanel_modules.button_manager import ButtonManager
+from smartpanel_modules.matter_server import MatterServer
 from smartpanel_modules.gpio_control import init_gpio_control
 from smartpanel_modules.config import ENC_A, ENC_B, ENC_PUSH, BUTTON_PINS
 
@@ -69,9 +71,14 @@ def show_gpio_control(context):
     return GPIOControlScreen()
 
 
-def show_matter_devices(context):
-    """Show Matter devices screen"""
-    return MatterDevicesScreen()
+def show_matter_status(context):
+    """Show Matter server status and pairing QR code"""
+    return MatterDevicesScreen(context['matter_server'])
+
+
+def show_button_config(context):
+    """Show button configuration screen"""
+    return ButtonConfigScreen(context['button_manager'], context.get('matter_server'))
 
 
 def show_settings(context):
@@ -133,7 +140,7 @@ class SmartPanel:
         # Initialize display
         logger.info(f"Initializing display with offset {OFFSET_PRESETS[self.offset_idx]}")
         xoff, yoff = OFFSET_PRESETS[self.offset_idx]
-        self.display = Display(xoff, yoff)
+        self.display = Display(xoff, yoff, self.config)
         logger.info(f"Display initialized: {self.display.width}x{self.display.height}")
         
         # Initialize input handler
@@ -143,6 +150,14 @@ class SmartPanel:
         # Initialize GPIO control
         logger.info("Initializing GPIO control")
         init_gpio_control()
+        
+        # Initialize button manager
+        logger.info("Initializing button manager")
+        self.button_manager = ButtonManager(self.config)
+        
+        # Initialize Matter server
+        logger.info("Initializing Matter server")
+        self.matter_server = MatterServer(self.config, BUTTON_PINS)
         
         # Create main menu
         logger.debug("Creating main menu")
@@ -162,12 +177,18 @@ class SmartPanel:
         """Create the main menu structure"""
         menu = Menu("Smart Panel")
         menu.add_item(MenuItem("System Info", action=show_system_info))
+        menu.add_item(MenuItem("Matter Status", action=show_matter_status))
+        menu.add_item(MenuItem("Button Config", action=show_button_config))
         menu.add_item(MenuItem("GPIO Control", action=show_gpio_control))
-        menu.add_item(MenuItem("Matter Devices", action=show_matter_devices))
         menu.add_item(MenuItem("Settings", action=show_settings))
         menu.add_item(MenuItem("About", action=show_about))
-        menu.add_item(MenuItem("Shutdown", action=shutdown_system))
-        menu.add_item(MenuItem("Restart", action=restart_system))
+        
+        # Power submenu
+        power_menu = Menu("Power")
+        power_menu.add_item(MenuItem("Shutdown", action=shutdown_system))
+        power_menu.add_item(MenuItem("Restart", action=restart_system))
+        menu.add_item(MenuItem("Power", submenu=power_menu))
+        
         return menu
     
     def run(self):
@@ -175,6 +196,19 @@ class SmartPanel:
         logger.info("Starting main loop")
         try:
             while True:
+                # Check for emergency reset FIRST
+                reset_status, reset_progress = self.input_handler.check_emergency_reset()
+                
+                if reset_status == 'triggered':
+                    logger.critical("EMERGENCY RESET - Restarting Smart Panel")
+                    self._emergency_reset()
+                    break
+                elif reset_status == 'active':
+                    # Show emergency reset progress on display
+                    self._show_emergency_reset_progress(reset_progress)
+                    time.sleep(0.1)
+                    continue
+                
                 # Get input
                 enc_delta = self.input_handler.get_encoder_delta()
                 enc_button_state = self.input_handler.get_encoder_button_state()
@@ -189,18 +223,42 @@ class SmartPanel:
                     pressed = [BUTTON_LABELS.get(p, f'GPIO{p}') for p, v in button_states.items() if v]
                     logger.debug(f"Buttons pressed: {pressed}")
                 
-                # Handle special buttons
-                if 12 in button_states and button_states[12]:  # B5: cycle offsets
-                    logger.info("Cycling display offset")
-                    self._cycle_offset()
-                    continue
+                # Handle physical button presses through button manager
+                for pin, pressed in button_states.items():
+                    if pressed:
+                        context = {
+                            'config': self.config,
+                            'panel': self,
+                            'matter_server': self.matter_server,
+                            'button_manager': self.button_manager
+                        }
+                        action = self.button_manager.handle_button_press(pin, context)
+                        
+                        if action == 'offset_cycle':
+                            logger.info("Cycling display offset")
+                            self._cycle_offset()
+                            continue
+                        elif action == 'matter_qr':
+                            # Navigate to Matter status screen
+                            self.screen_stack.append(self.current_screen)
+                            self.current_screen = MatterDevicesScreen(self.matter_server)
+                            self.current_screen.show_qr = True
+                            continue
+                        elif action == 'back':
+                            if self.screen_stack:
+                                self.current_screen = self.screen_stack.pop()
+                            else:
+                                self.current_screen = MenuScreen(self.main_menu)
+                            continue
                 
-                # Handle input
-                if enc_delta != 0 or enc_button_state != 'none' or any(button_states.values()):
+                # Handle encoder input
+                if enc_delta != 0 or enc_button_state != 'none':
                     # Create context for menu actions
                     context = {
                         'config': self.config,
-                        'panel': self
+                        'panel': self,
+                        'matter_server': self.matter_server,
+                        'button_manager': self.button_manager
                     }
                     
                     # Pass context to screen if it's a MenuScreen
@@ -238,6 +296,13 @@ class SmartPanel:
             logger.error(f"Unexpected error in main loop: {e}", exc_info=True)
         finally:
             logger.info("Shutting down Smart Panel")
+            
+            # Stop Matter server
+            if hasattr(self, 'matter_server'):
+                logger.info("Stopping Matter server")
+                self.matter_server.stop()
+            
+            # Cleanup GPIO
             GPIO.cleanup()
             logger.info("Cleanup complete")
     
@@ -250,7 +315,7 @@ class SmartPanel:
             # Reinitialize display with new offset
             xoff, yoff = OFFSET_PRESETS[self.offset_idx]
             logger.info(f"Changing display offset to: ({xoff}, {yoff})")
-            self.display = Display(xoff, yoff)
+            self.display = Display(xoff, yoff, self.config)
             
             # Show splash
             self.display.show_splash(f"Offset: {xoff},{yoff}")
@@ -259,6 +324,69 @@ class SmartPanel:
             logger.info(f"Display offset changed successfully")
         except Exception as e:
             logger.error(f"Error cycling offset: {e}", exc_info=True)
+    
+    def _show_emergency_reset_progress(self, progress):
+        """Show emergency reset progress on display"""
+        def render_reset(draw, w, h):
+            from .ui_components import FONT_M, FONT_S
+            colors = get_colors(self.config)
+            
+            # Title
+            draw.text((w//2 - 60, 20), "EMERGENCY RESET", font=FONT_M, fill=colors['error'])
+            
+            # Progress bar
+            bar_width = w - 20
+            bar_height = 30
+            bar_x = 10
+            bar_y = h//2 - 15
+            
+            # Background
+            draw.rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], 
+                         outline=colors['error'], fill=colors['bg'])
+            
+            # Progress fill
+            fill_width = int(bar_width * progress / 100)
+            if fill_width > 0:
+                draw.rectangle([bar_x + 2, bar_y + 2, 
+                              bar_x + fill_width - 2, bar_y + bar_height - 2], 
+                             fill=colors['error'])
+            
+            # Percentage text
+            text = f"{progress}%"
+            draw.text((w//2 - 20, bar_y + 8), text, font=FONT_M, fill=colors['fg'])
+            
+            # Instructions
+            draw.text((10, h - 30), "Release to cancel", font=FONT_S, fill=colors['warning'])
+        
+        self.display.render(render_reset)
+    
+    def _emergency_reset(self):
+        """Perform emergency reset"""
+        from .config import reset_config
+        
+        logger.warning("Performing emergency reset")
+        
+        # Reset configuration
+        if reset_config():
+            logger.info("Configuration reset to defaults")
+        
+        # Show confirmation
+        def render_confirm(draw, w, h):
+            from .ui_components import FONT_M
+            colors = get_colors(self.config)
+            draw.text((w//2 - 50, h//2 - 10), "RESET COMPLETE", 
+                     font=FONT_M, fill=colors['accent'])
+            draw.text((w//2 - 40, h//2 + 10), "Restarting...", 
+                     font=FONT_M, fill=colors['fg'])
+        
+        self.display.render(render_confirm)
+        time.sleep(2)
+        
+        # Restart the application
+        import sys
+        import os
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
 
 
 # ---------- Entry Point ----------

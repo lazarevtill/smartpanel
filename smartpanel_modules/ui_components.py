@@ -111,6 +111,6 @@ class Button(UIComponent):
             text_width = draw.textlength(self.text, font=FONT_S)
             text_x = self.x + (self.width - text_width) // 2
             text_y = self.y + (self.height - 12) // 2
-            text_color = COLORS['bg'] if self.enabled else COLORS['fg']
+            text_color = colors['bg'] if self.enabled else colors['fg']
             draw.text((text_x, text_y), self.text, font=FONT_S, fill=text_color)
 
