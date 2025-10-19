@@ -1,0 +1,184 @@
+{
+ "discriminator": 3585,
+ "passcode": 85805838,
+ "manual_code": "3355-985-2378",
+ "iteration-count": 10000,
+ "salt": "OUmPfHHH9F6RFVFoIYieY9QJgezFNQE+fyE3TXsoass=",
+ "verifier": "Sh144tpua0RTcIsMtskAuaw96B+UCPGFcxXe43VuDTQEAZAZ+yAJKaIGV3uu8y084rkGak+48OBt/H/RTNqFIKXnvqCHtA+qUaZtpDdQ5ArmwadFJD3KL73jLjwEnsYdSw==",
+ "devices": {
+  "root": {
+   "0x3e": {
+    "cd": "MIHmBgkqhkiG9w0BBwKggdgwgdUCAQMxDTALBglghkgBZQMEAgEwQwYJKoZIhvcNAQcBoDYENBUkAAElAfT/NgIFNBIYJAMWLAQTQ1NBMDAwMDBTV0MwMDAwMC0wMCQFACQGACQHASQIABgxfDB6AgEDgBRi+oIzWaz6qZY+HPoUCt31BPNxYDALBglghkgBZQMEAgEwCgYIKoZIzj0EAwIERjBEAiAKLXJIEHbFW3S3SO3c4UHNVjY48MOG24341DP7OjTiYgIgM7MkPepWzzprx1JvBdAOGBLforG8p9lZKPnMmFPt2uY=",
+    "dac_cert": "MIIBzTCCAXSgAwIBAgIBATAKBggqhkjOPQQDAjAyMRowGAYDVQQDDBFDaXJjdWl0TWF0dGVyIFBBSTEUMBIGCisGAQQBgqJ8AgEMBEZGRjQwIBcNMjQxMDE3MDAwMDAwWhgPOTk5OTEyMzEyMzU5NTlaMEsxHTAbBgNVBAMMFENpcmN1aXRNYXR0ZXIgRGV2aWNlMRQwEgYKKwYBBAGConwCAQwERkZGNDEUMBIGCisGAQQBgqJ8AgIMBDEyMzQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQsEFtqTcPROskluI1/IMqaYIVx47c62W5l/OPLKk3yFZZUhGKDpgH38UtLO21lKu1CYvDJKMGvBy0XcEl8lB63o2AwXjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQU2z4Q2M7nzv/p1fSW+e9crYYbUoswHwYDVR0jBBgwFoAUB/g4Cl8BNvziNr1F8oj/Itym9KcwCgYIKoZIzj0EAwIDRwAwRAIgSGqwETsXhXjgbmWY3bBYofyVhRPavYTYqn9UCMM9aDECIGXPCJWF6aAIzNH0aJGxoHV+MvHByZ/PQR1AjAUpjjsV",
+    "dac_key": "MHcCAQEEIHtWqFd0t1SYxtX77Rp5P1ol+YB0DoR/z8jc98uNXU3joAoGCCqGSM49AwEHoUQDQgAELBBbak3D0TrJJbiNfyDKmmCFceO3OtluZfzjyypN8hWWVIRig6YB9/FLSzttZSrtQmLwySjBrwctF3BJfJQetw==",
+    "a": {
+     "0x0": [],
+     "0x1": [],
+     "0x3": 0,
+     "0x4": []
+    }
+   },
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x28": {
+    "a": {}
+   },
+   "0x1f": {
+    "a": {}
+   },
+   "0x3f": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x31": {
+    "a": {
+     "0x4": true
+    }
+   },
+   "0x30": {
+    "a": {}
+   },
+   "0x33": {
+    "a": {}
+   }
+  },
+  "Button 1": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  },
+  "Button 2": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  },
+  "Button 3": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  },
+  "Button 4": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  },
+  "Button 5": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  },
+  "Button 6": {
+   "0x1d": {
+    "a": {}
+   },
+   "0x1e": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x41": {
+    "a": {
+     "0x0": []
+    }
+   },
+   "0x6": {
+    "a": {
+     "0x0": false,
+     "0x4003": null
+    }
+   }
+  }
+ }
+}
