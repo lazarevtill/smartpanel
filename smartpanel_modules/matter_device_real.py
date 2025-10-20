@@ -97,7 +97,7 @@ class MatterButtonDevice:
     def __init__(self, config, button_pins):
         self.config = config
         self.enabled = config.get('matter_enabled', True) and HAS_CIRCUITMATTER
-        self.vendor_id = config.get('matter_vendor_id', 0xFFF1)
+        self.vendor_id = config.get('matter_vendor_id', 0xFFF4)  # Use CircuitMatter vendor ID
         self.product_id = config.get('matter_product_id', 0x8000)
         self.discriminator = config.get('matter_discriminator', 3840)
         self.setup_pin = config.get('matter_setup_pin', 20202021)

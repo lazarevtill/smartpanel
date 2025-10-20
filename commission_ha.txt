@@ -1,0 +1,23 @@
+COMMISSIONING INSTRUCTIONS FOR HOME ASSISTANT:
+
+New QR Code: MT:Y.K90AFN00KA0648G00
+New Manual Code: 3497-011-2332
+
+The issue: Home Assistant rejects CircuitMatter's test certificate signature.
+
+SOLUTION: Use these alternative methods:
+
+1. CHIP-TOOL (if available):
+   chip-tool pairing code 1 MT:Y.K90AFN00KA0648G00 --bypass-attestation-verifier
+
+2. HOME ASSISTANT MATTER SERVER directly:
+   - SSH into Home Assistant
+   - Install Matter server add-on in development mode
+   - Enable "Skip certificate validation" option
+
+3. TRY APPLE HOME instead:
+   - More lenient than Home Assistant
+   - Open Home app → Add Accessory
+   - Scan QR code
+
+Your Smart Panel is working correctly. The limitation is certificate validation.
